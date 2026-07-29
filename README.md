@@ -17,7 +17,7 @@ Sheets, e hospedagem no Vercel.
 1. Crie uma planilha nova no Google Sheets.
 2. Renomeie a primeira aba para `Usuarios` e coloque este cabe\u00e7alho na linha 1:
    ```
-   username | password_hash | nome | papel
+   username | senha | nome | papel
    ```
 3. Crie uma segunda aba chamada `Relatorios` com este cabe\u00e7alho na linha 1:
    ```
@@ -43,19 +43,25 @@ Sheets, e hospedagem no Vercel.
 
 ## 3. Cadastrar os primeiros usu\u00e1rios
 
-As senhas nunca ficam em texto puro na planilha, apenas um hash. Para gerar o hash de uma
-senha:
+Sem script, sem terminal: abra a aba `Usuarios` da planilha e preencha uma linha por
+pessoa, direto nas c\u00e9lulas:
 
-```bash
-npm install
-node scripts/gerar-hash-senha.js "senhaDoTecnico"
-```
+| username | senha | nome | papel |
+|---|---|---|---|
+| joao | umaSenhaQualquer | Jo\u00e3o Silva | tecnico |
 
-Isso imprime um hash tipo `$2a$10$...`. Copie e cole na coluna `password_hash` da aba
-`Usuarios`, na mesma linha do `username` escolhido. Preencha tamb\u00e9m `nome` (nome de
-exibi\u00e7\u00e3o) e `papel` (ex: `tecnico` ou `admin`, hoje informativo).
+- `username`: o que a pessoa digita pra entrar (sem espa\u00e7o, sem acento de prefer\u00eancia).
+- `senha`: a senha dela, em texto normal.
+- `nome`: nome que aparece no topo do app ("Ol\u00e1, Jo\u00e3o").
+- `papel`: hoje s\u00f3 informativo (ex: `tecnico`, `admin`).
 
-Repita para cada pessoa da equipe que vai usar o app.
+Repita para cada pessoa da equipe. Pra trocar a senha de algu\u00e9m, \u00e9 s\u00f3 editar a c\u00e9lula
+`senha` da linha dela.
+
+**Sobre seguran\u00e7a:** as senhas ficam em texto simples na planilha, vis\u00edveis pra quem
+tiver acesso de edi\u00e7\u00e3o a ela. Pra uma ferramenta interna, com a planilha restrita \u00e0
+equipe, isso costuma ser aceit\u00e1vel - s\u00f3 evite compartilhar a planilha com mais gente
+do que precisa ter acesso ao painel.
 
 ## 4. Configurar as vari\u00e1veis de ambiente
 
@@ -131,8 +137,6 @@ api/
 lib/
   auth.js          -> assinatura/verifica\u00e7\u00e3o do login (JWT em cookie httpOnly)
   sheets.js        -> leitura/escrita no Google Sheets
-scripts/
-  gerar-hash-senha.js -> gera hash bcrypt pra cadastrar usu\u00e1rios na planilha
 ```
 
 ## Limita\u00e7\u00f5es a ter em mente
@@ -141,8 +145,8 @@ scripts/
   a poucas centenas de relat\u00f3rios). Se o volume crescer muito, vale migrar para um
   banco de verdade (Postgres/Supabase) no futuro - a estrutura de `/api` j\u00e1 fica pronta
   pra essa troca, s\u00f3 mudando `lib/sheets.js`.
-- N\u00e3o h\u00e1 recupera\u00e7\u00e3o de senha automatizada; para trocar a senha de algu\u00e9m, gere um
-  novo hash (passo 3) e atualize a linha da pessoa na planilha.
+- As senhas ficam em texto simples na planilha (veja o aviso no passo 3). Pra trocar a
+  senha de algu\u00e9m, edite direto a c\u00e9lula na aba `Usuarios`.
 - As assinaturas ficam gravadas como imagem (base64) dentro do `payload_json` de cada
   relat\u00f3rio - isso deixa cada c\u00e9lula da planilha razoavelmente pesada, mas funciona
   bem para o volume esperado.

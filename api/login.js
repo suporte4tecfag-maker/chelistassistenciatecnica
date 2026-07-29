@@ -1,4 +1,3 @@
-const bcrypt = require('bcryptjs');
 const { getUserByUsername } = require('../lib/sheets');
 const { sign, setCookie } = require('../lib/auth');
 
@@ -14,12 +13,11 @@ module.exports = async (req, res) => {
       return;
     }
     const user = await getUserByUsername(username);
-    if (!user || !user.passwordHash) {
+    if (!user || !user.senha) {
       res.status(401).json({ error: 'Usu\u00e1rio ou senha inv\u00e1lidos.' });
       return;
     }
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) {
+    if (String(password) !== String(user.senha)) {
       res.status(401).json({ error: 'Usu\u00e1rio ou senha inv\u00e1lidos.' });
       return;
     }
