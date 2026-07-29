@@ -1,0 +1,9 @@
+{
+  "name": "tecfag-checklist-visita",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Checklist de visita t\u00e9cnica Tecfag - PWA com backend em Vercel + Google Sheets (via Apps Script)",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  }
+}
