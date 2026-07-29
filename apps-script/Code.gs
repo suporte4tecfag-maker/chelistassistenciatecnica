@@ -16,7 +16,7 @@ function doPost(e) {
     return output({ error: 'Requisicao invalida.' });
   }
 
-  if (body.secret !== SECRET) {
+  if (String(body.secret || '').trim() !== SECRET.trim()) {
     return output({ error: 'Nao autorizado.' });
   }
 
