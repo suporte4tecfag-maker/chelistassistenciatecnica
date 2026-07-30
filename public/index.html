@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0A0A0B">
 <meta name="description" content="Checklist de visita t&eacute;cnica e painel de relat&oacute;rios da Tecfag">
 <link rel="manifest" href="/manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
@@ -979,17 +980,77 @@
     return lines;
   }
 
-  function downloadSummary(f, tipoObj, itemsObj, filename){
+  function downloadSummary(f, tipoObj, itemsObj, filename, sigObj){
     const lines = buildSummaryLines(f, tipoObj, itemsObj);
-    const blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    if(!window.jspdf){
+      // fallback caso a biblioteca de PDF nao tenha carregado (ex: sem internet)
+      const blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace(/\.pdf$/i, '.txt');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      statusMsg('Sem PDF dispon\u00edvel agora, baixado como .txt.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const marginX = 40;
+    const maxWidth = 515;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const lineHeight = 13;
+    let y = 50;
+
+    function ensureSpace(extra){
+      if(y > pageHeight - (extra||60)){ doc.addPage(); y = 50; }
+    }
+
+    lines.forEach((raw)=>{
+      const isHeader = raw.startsWith('== ');
+      const text = isHeader ? raw.replace(/^==\s*|\s*==$/g,'') : raw;
+      doc.setFont(undefined, isHeader ? 'bold' : 'normal');
+      doc.setFontSize(isHeader ? 11 : 9.5);
+      if(text === ''){ y += lineHeight*0.6; return; }
+      const wrapped = doc.splitTextToSize(text, maxWidth);
+      wrapped.forEach((ln)=>{
+        ensureSpace(60);
+        doc.text(ln, marginX, y);
+        y += lineHeight;
+      });
+      if(isHeader) y += 2;
+    });
+
+    if(sigObj && (sigObj.sigTec || sigObj.sigCli)){
+      ensureSpace(180);
+      y += 10;
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(11);
+      doc.text('Assinaturas', marginX, y);
+      y += 16;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9.5);
+      if(sigObj.sigTec){
+        ensureSpace(110);
+        doc.text('T\u00e9cnico respons\u00e1vel:', marginX, y);
+        y += 6;
+        try{ doc.addImage(sigObj.sigTec, 'PNG', marginX, y, 180, 65); }catch(e){}
+        y += 80;
+      }
+      if(sigObj.sigCli){
+        ensureSpace(110);
+        doc.text('Respons\u00e1vel pelo cliente:', marginX, y);
+        y += 6;
+        try{ doc.addImage(sigObj.sigCli, 'PNG', marginX, y, 180, 65); }catch(e){}
+        y += 80;
+      }
+    }
+
+    doc.save(filename);
   }
 
   function sendByEmail(f, tipoObj, itemsObj){
@@ -997,7 +1058,7 @@
     const subject = 'Relat\u00f3rio de visita t\u00e9cnica - ' + ((f&&f.f_cliente)||'Cliente');
     let body = lines.join('\n');
     const maxLen = 1800;
-    if(body.length > maxLen){ body = body.slice(0,maxLen) + '\n\n[Resumo truncado por limite do e-mail - baixe o relat\u00f3rio completo pelo bot\u00e3o "Baixar .txt"]'; }
+    if(body.length > maxLen){ body = body.slice(0,maxLen) + '\n\n[Resumo truncado por limite do e-mail - baixe o relat\u00f3rio completo em PDF]'; }
     window.location.href = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
   }
 
@@ -1033,7 +1094,7 @@
       });
       if(resp.ok){
         statusMsg('Relat\u00f3rio enviado ao painel.');
-        downloadSummary(state.fields, state.tipo, state.items, 'resumo_visita_tecnica.txt');
+        downloadSummary(state.fields, state.tipo, state.items, 'resumo_visita_tecnica.pdf', state.sig);
         localStorage.removeItem('checklist_visita_draft');
       }else{
         const err = await resp.json().catch(()=>({}));
@@ -1147,7 +1208,7 @@
         <div class="tv-report-detail">
           <pre></pre>
           <div class="tv-report-detail-actions">
-            <button class="tv-secondary" data-action="download">Baixar .txt</button>
+            <button class="tv-secondary" data-action="download">Baixar PDF</button>
             <button class="tv-secondary" data-action="email">E-mail</button>
           </div>
         </div>
@@ -1162,7 +1223,7 @@
       };
       card.querySelector('[data-action="download"]').onclick=(e)=>{
         e.stopPropagation();
-        downloadSummary(f, r.payload.tipo, items, 'relatorio_'+(f.f_cliente||'visita').replace(/\s+/g,'_')+'.txt');
+        downloadSummary(f, r.payload.tipo, items, 'relatorio_'+(f.f_cliente||'visita').replace(/\s+/g,'_')+'.pdf', r.payload.sig);
       };
       card.querySelector('[data-action="email"]').onclick=(e)=>{
         e.stopPropagation();
