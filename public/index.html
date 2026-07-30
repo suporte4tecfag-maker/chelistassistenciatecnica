@@ -852,11 +852,13 @@
   });
 
   // signature canvases
+  const sigResizers = [];
   function setupSig(canvasId){
     const canvas = document.getElementById(canvasId);
     function resize(){
       const ratio = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
+      if(rect.width === 0 || rect.height === 0) return; // ainda escondido, tenta de novo depois
       canvas.width = rect.width*ratio;
       canvas.height = rect.height*ratio;
       const ctx = canvas.getContext('2d');
@@ -866,6 +868,7 @@
       ctx.strokeStyle='#F3F1EE';
     }
     resize();
+    sigResizers.push(resize);
     let drawing=false, lastX=0, lastY=0;
     function pos(e){
       const rect = canvas.getBoundingClientRect();
@@ -1193,6 +1196,7 @@
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('tvRoot').style.display = 'block';
     document.getElementById('userLabel').textContent = nome ? ('Ol\u00e1, '+nome) : '';
+    if(typeof sigResizers !== 'undefined'){ sigResizers.forEach(fn=>fn()); }
     loadDraftFromLocalStorage();
   }
 
